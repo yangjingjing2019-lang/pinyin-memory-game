@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>輕聲詞語翻卡練習</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-paper: #fdf6e3; /* 護眼書卷背景 */
+            --card-white: #ffffff;
+            --primary: #6ab04c; /* 進度與邊框綠 */
+            --accent: #eb4d4b;  /* 拼音與按鈕紅 */
+            --pinyin-font: 'Calibri', 'Segoe UI', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-paper);
+            font-family: 'Noto Sans TC', sans-serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+            background-image: radial-gradient(#dcdde1 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        #game-title {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            font-size: 1.1rem;
+            color: #7f8c8d;
+            font-weight: bold;
+            border-bottom: 2px solid var(--primary);
+        }
+
+        .stage {
+            width: 90%;
+            max-width: 380px;
+            text-align: center;
+        }
+
+        #progress-tag {
+            background: var(--primary);
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            margin-bottom: 15px;
+            display: inline-block;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        /* 翻卡核心樣式 */
+        .card-box {
+            width: 100%;
+            height: 350px;
+            perspective: 1000px;
+            margin-bottom: 25px;
+        }
+
+        .card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.2);
+            transform-style: preserve-3d;
+            cursor: pointer;
+        }
+
+        /* 翻轉狀態：增加 Z 軸偏移讓動畫更立體 */
+        .card-box.flipped .card-inner {
+            transform: rotateY(180deg) translateZ(10px);
+        }
+
+        .card-front, .card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            border-radius: 30px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            border: 8px solid white;
+            box-sizing: border-box;
+        }
+
+        .card-front {
+            background: var(--card-white);
+        }
+
+        .card-back {
+            background: var(--card-white);
+            color: #2c3e50;
+            transform: rotateY(180deg);
+            border-color: var(--primary);
+        }
+
+        .pinyin {
+            font-family: var(--pinyin-font);
+            font-size: 3rem;
+            color: var(--accent);
+            font-weight: bold;
+        }
+
+        .word {
+            font-size: 4.5rem;
+            letter-spacing: 8px;
+            font-weight: 700;
+        }
+
+        /* 導航按鈕 */
+        .nav-controls {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .btn {
+            background: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 15px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            box-shadow: 0 4px 0 #ddd;
+            transition: all 0.1s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn:active {
+            transform: translateY(3px);
+            box-shadow: 0 1px 0 #ddd;
+        }
+
+        .btn-audio {
+            background: var(--accent);
+            color: white;
+            width: 65px;
+            height: 65px;
+            border-radius: 50%;
+            font-size: 1.6rem;
+            box-shadow: 0 4px 0 #c0392b;
+        }
+
+        /* 總結彙總頁 */
+        #summary-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: var(--bg-paper);
+            z-index: 1000;
+            padding: 40px 20px;
+            overflow-y: auto;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 15px;
+            max-width: 800px;
+            margin: 20px auto;
+        }
+
+        .summary-item {
+            background: white;
+            padding: 20px;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            cursor: pointer;
+            border-bottom: 4px solid var(--primary);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-title">輕聲詞語翻卡練習</div>
+
+    <div class="stage">
+        <div id="progress-tag">進度 1 / 20</div>
+        
+        <div class="card-box" id="cardElement" onclick="toggleFlip()">
+            <div class="card-inner">
+                <div class="card-front">
+                    <div class="pinyin" id="pinyinTxt"></div>
+                    <div style="font-size: 0.8rem; color:#ccc; margin-top:20px;">點擊翻轉卡片</div>
+                </div>
+                <div class="card-back">
+                    <div class="word" id="wordTxt"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="nav-controls">
+            <button class="btn" onclick="prevCard()">⬅️</button>
+            <button class="btn btn-audio" onclick="playCurrent(event)">🔊</button>
+            <button class="btn" onclick="nextCard()">➡️</button>
+        </div>
+    </div>
+
+    <div id="summary-overlay">
+        <h2 style="text-align: center; color: var(--primary);">🎊 恭喜！練習完成 🎊</h2>
+        <div style="text-align: center; margin-bottom: 20px;">
+            <p>點擊下方小卡聽音，或查看總結：</p>
+            <audio id="fullAudio" controls style="width: 100%; max-width: 400px;"></audio>
+        </div>
+        <div class="summary-grid" id="summaryGrid"></div>
+        <div style="text-align: center; margin-top: 30px;">
+            <button class="btn" onclick="location.reload()" style="background: var(--primary); color:white; margin: auto;">重新開始</button>
+        </div>
+    </div>
+
+    <audio id="audioSource" src="輕聲詞語1.m4a.mp3"></audio>
+
+    <script>
+        const words = [
+            {w: "莊稼", p: "zhuāng jia", start: 2.1, end: 4.5},
+            {w: "雲彩", p: "yún cai", start: 4.5, end: 6.8},
+            {w: "帳篷", p: "zhàng peng", start: 6.8, end: 9.3},
+            {w: "掃帚", p: "sào zhou", start: 9.3, end: 11.5},
+            {w: "扎實", p: "zhā shi", start: 11.5, end: 14.1},
+            {w: "招牌", p: "zhāo pai", start: 14.1, end: 16.3},
+            {w: "祖宗", p: "zǔ zong", start: 16.3, end: 18.7},
+            {w: "告訴", p: "gào su", start: 18.7, end: 20.9},
+            {w: "規矩", p: "guī ju", start: 20.9, end: 23.4},
+            {w: "窗戶", p: "chuāng hu", start: 23.4, end: 25.8},
+            {w: "時候", p: "shí hou", start: 25.8, end: 28.1},
+            {w: "喜歡", p: "xǐ huan", start: 28.1, end: 30.7},
+            {w: "木匠", p: "mù jiang", start: 30.7, end: 32.8},
+            {w: "活潑", p: "huó po", start: 32.8, end: 35.1},
+            {w: "知識", p: "zhī shi", start: 35.1, end: 38.9},
+            {w: "包袱", p: "bāo fu", start: 38.9, end: 41.4},
+            {w: "蒼蠅", p: "cāng ying", start: 41.4, end: 43.0},
+            {w: "地道", p: "dì dao", start: 43.0, end: 45.1},
+            {w: "東西", p: "dōng xi", start: 45.1, end: 48.5},
+            {w: "耳朵", p: "ěr duo", start: 48.5, end: 49.5}
+        ];
+
+        let index = 0;
+        const audio = document.getElementById('audioSource');
+        let stopTimer;
+
+        function updateUI() {
+            const current = words[index];
+            document.getElementById('pinyinTxt').innerText = current.p;
+            document.getElementById('wordTxt').innerText = current.w;
+            document.getElementById('progress-tag').innerText = `進度 ${index + 1} / ${words.length}`;
+            document.getElementById('cardElement').classList.remove('flipped');
+        }
+
+        function toggleFlip() {
+            const card = document.getElementById('cardElement');
+            const toBack = !card.classList.contains('flipped');
+            card.classList.toggle('flipped');
+            if(toBack) playCurrent();
+        }
+
+        function playCurrent(e) {
+            if(e) e.stopPropagation();
+            const clip = words[index];
+            clearTimeout(stopTimer);
+            audio.pause();
+            audio.currentTime = clip.start;
+            audio.play();
+            const duration = (clip.end - clip.start) * 1000;
+            stopTimer = setTimeout(() => { audio.pause(); }, duration);
+        }
+
+        function nextCard() {
+            if (index < words.length - 1) {
+                index++;
+                updateUI();
+            } else {
+                showSummary();
+            }
+        }
+
+        function prevCard() {
+            if (index > 0) {
+                index--;
+                updateUI();
+            }
+        }
+
+        function showSummary() {
+            const overlay = document.getElementById('summary-overlay');
+            const grid = document.getElementById('summaryGrid');
+            const fullPlayer = document.getElementById('fullAudio');
+            
+            fullPlayer.src = audio.src;
+            overlay.style.display = 'block';
+            grid.innerHTML = "";
+            
+            words.forEach((item) => {
+                const div = document.createElement('div');
+                div.className = 'summary-item';
+                div.innerHTML = `<div style="font-family: Calibri; color: var(--accent); font-weight: bold;">${item.p}</div><div style="font-size: 1.6rem; font-weight: bold;">${item.w}</div>`;
+                div.onclick = () => {
+                    audio.pause();
+                    audio.currentTime = item.start;
+                    audio.play();
+                    setTimeout(() => audio.pause(), (item.end - item.start) * 1000);
+                };
+                grid.appendChild(div);
+            });
+        }
+
+        // iOS 音頻啟動
+        document.body.addEventListener('touchstart', () => { audio.load(); }, { once: true });
+
+        updateUI();
+    </script>
+</body>
+</html>
